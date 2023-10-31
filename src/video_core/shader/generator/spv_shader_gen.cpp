@@ -1448,6 +1448,7 @@ void FragmentModule::DefineArithmeticTypes() {
     f32_id = Name(TypeFloat(32), "f32_id");
     i32_id = Name(TypeSInt(32), "i32_id");
     u32_id = Name(TypeUInt(32), "u32_id");
+    Decorate(f32_id, spv::Decoration::RelaxedPrecision);
 
     for (u32 size = 2; size <= 4; size++) {
         const u32 i = size - 2;
@@ -1455,6 +1456,7 @@ void FragmentModule::DefineArithmeticTypes() {
         ivec_ids.ids[i] = Name(TypeVector(i32_id, size), fmt::format("ivec{}_id", size));
         uvec_ids.ids[i] = Name(TypeVector(u32_id, size), fmt::format("uvec{}_id", size));
         bvec_ids.ids[i] = Name(TypeVector(bool_id, size), fmt::format("bvec{}_id", size));
+        Decorate(vec_ids.ids[i], spv::Decoration::RelaxedPrecision);
     }
 }
 
