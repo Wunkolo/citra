@@ -3,6 +3,7 @@
 // Refer to the license.txt file included.
 
 #include <boost/container/small_vector.hpp>
+#include <boost/container/static_vector.hpp>
 
 #include "common/literals.h"
 #include "common/microprofile.h"
@@ -1463,8 +1464,9 @@ void Surface::BlitScale(const VideoCore::TextureBlit& blit, bool up_scale) {
 
 Framebuffer::Framebuffer(TextureRuntime& runtime, const VideoCore::FramebufferParams& params,
                          Surface* color, Surface* depth)
-    : VideoCore::FramebufferParams{params}, res_scale{color ? color->res_scale
-                                                            : (depth ? depth->res_scale : 1u)} {
+    : VideoCore::FramebufferParams{params},
+      res_scale{color ? color->res_scale : (depth ? depth->res_scale : 1u)},
+      sample_count{params.sample_count} {
     auto& renderpass_cache = runtime.GetRenderpassCache();
     if (shadow_rendering && !color) {
         return;
@@ -1479,22 +1481,31 @@ Framebuffer::Framebuffer(TextureRuntime& runtime, const VideoCore::FramebufferPa
         if (!shadow_rendering) {
             formats[index] = surface->pixel_format;
         }
-        images[index] = surface->Image();
         aspects[index] = surface->Aspect();
+        images[index] = surface->Image();
         image_views[index] = shadow_rendering ? surface->StorageView() : surface->FramebufferView();
     };
 
-    u32 num_attachments = 0;
-    std::array<vk::ImageView, 2> attachments;
+    boost::container::static_vector<vk::ImageView, 4> attachments;
 
     if (color) {
         prepare(0, color);
-        attachments[num_attachments++] = image_views[0];
+        attachments.emplace_back(image_views[0]);
     }
 
     if (depth) {
         prepare(1, depth);
-        attachments[num_attachments++] = image_views[1];
+        attachments.emplace_back(image_views[1]);
+    }
+
+    if (sample_count > 1) {
+        if (color) {
+            attachments.emplace_back(color->ImageView(3));
+        }
+
+        if (depth) {
+            attachments.emplace_back(depth->ImageView(3));
+        }
     }
 
     const vk::Device device = runtime.GetInstance().GetDevice();
@@ -1502,11 +1513,10 @@ Framebuffer::Framebuffer(TextureRuntime& runtime, const VideoCore::FramebufferPa
         render_pass =
             renderpass_cache.GetRenderpass(PixelFormat::Invalid, PixelFormat::Invalid, false);
         framebuffer = MakeFramebuffer(device, render_pass, color->GetScaledWidth(),
-                                      color->GetScaledHeight(), {}, 0);
+                                      color->GetScaledHeight(), {});
     } else {
-        render_pass = renderpass_cache.GetRenderpass(formats[0], formats[1], false);
-        framebuffer =
-            MakeFramebuffer(device, render_pass, width, height, attachments, num_attachments);
+        render_pass = renderpass_cache.GetRenderpass(formats[0], formats[1], false, sample_count);
+        framebuffer = MakeFramebuffer(device, render_pass, width, height, attachments);
     }
 }
 
