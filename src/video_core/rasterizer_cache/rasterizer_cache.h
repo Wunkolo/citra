@@ -263,7 +263,6 @@ bool RasterizerCache<T>::AccelerateDisplayTransfer(const GPU::Regs::DisplayTrans
     src_params.height = config.output_height;
     src_params.is_tiled = !config.input_linear;
     src_params.pixel_format = PixelFormatFromGPUPixelFormat(config.input_format);
-    src_params.sample_count = sample_count;
     src_params.UpdateParams();
 
     SurfaceParams dst_params;
@@ -336,7 +335,6 @@ bool RasterizerCache<T>::AccelerateFill(const GPU::Regs::MemoryFillConfig& confi
     params.size = params.end - params.addr;
     params.type = SurfaceType::Fill;
     params.res_scale = std::numeric_limits<u16>::max();
-    params.sample_count = sample_count;
 
     SurfaceId fill_surface_id = slot_surfaces.insert(runtime, params);
     Surface& fill_surface = slot_surfaces[fill_surface_id];
